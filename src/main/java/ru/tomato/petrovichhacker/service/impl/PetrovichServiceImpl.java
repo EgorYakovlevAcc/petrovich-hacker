@@ -101,30 +101,31 @@ public class PetrovichServiceImpl implements PetrovichService {
     @Override
     public void checkValues() {
         for (String goodId : goodsIds) {
-            Document document = getDocument(PetrovichHackerUtils.getUrl(goodId));
-            Element body = document.body();
-            Optional<Element> productSidebarContent = Optional.ofNullable(body)
-                    .map(e -> getSingleElementByClassName(e, "product-sidebar-content"));
+            Optional<Document> document = getDocument(PetrovichHackerUtils.getUrl(goodId));
+            if (document.isPresent()) {
+                Optional<Element> productSidebarContent = document
+                        .map(Document::body)
+                        .map(e -> getSingleElementByClassName(e, "product-sidebar-content"));
 
-            Element result = productSidebarContent
-                    .map(e -> getSingleElementByClassName(e, "remains-card-title"))
-                    .map(e -> getSingleElementByTag(e, "h3"))
-                    .orElse(null);
+                Element result = productSidebarContent
+                        .map(e -> getSingleElementByClassName(e, "remains-card-title"))
+                        .map(e -> getSingleElementByTag(e, "h3"))
+                        .orElse(null);
 
-            if (result == null) {
-                LOGGER.info("[BOOKING]: Good is just available for booking: {}", goodId);
-                LOGGER.info(body.html());
-                this.petrovichHackerBot.notifyAboutGoodsAvailableForBooking(goodId);
-            } else if (Objects.equals(result.text(), AVAILABILITY)) {
-                LOGGER.info("[AVAILABLE]: You can buy good {}", goodId);
-                GoodDetails goodDetails = getGoodDetails(productSidebarContent);
-                LOGGER.info("Good details: {}", goodDetails);
-                this.petrovichHackerBot.notifyAboutSuccess(goodId, goodDetails);
-            } else if (Objects.equals(result.text(), NON_AVAILABILITY)) {
-                LOGGER.info("[ABSENT] Good is absent: {}", goodId);
-            } else {
-                LOGGER.warn("[STRANGE] Something strange occurred... It is better to check by the link: {}", goodId);
-                this.petrovichHackerBot.notifyAboutStranges(goodId);
+                if (result == null) {
+                    LOGGER.info("[BOOKING]: Good is just available for booking: {}", goodId);
+                    this.petrovichHackerBot.notifyAboutGoodsAvailableForBooking(goodId);
+                } else if (Objects.equals(result.text(), AVAILABILITY)) {
+                    LOGGER.info("[AVAILABLE]: You can buy good {}", goodId);
+                    GoodDetails goodDetails = getGoodDetails(productSidebarContent);
+                    LOGGER.info("Good details: {}", goodDetails);
+                    this.petrovichHackerBot.notifyAboutSuccess(goodId, goodDetails);
+                } else if (Objects.equals(result.text(), NON_AVAILABILITY)) {
+                    LOGGER.info("[ABSENT] Good is absent: {}", goodId);
+                } else {
+                    LOGGER.warn("[STRANGE] Something strange occurred... It is better to check by the link: {}", goodId);
+                    this.petrovichHackerBot.notifyAboutStranges(goodId);
+                }
             }
         }
     }
@@ -230,14 +231,14 @@ public class PetrovichServiceImpl implements PetrovichService {
         return null;
     }
 
-    private Document getDocument(String url) {
+    private Optional<Document> getDocument(String url) {
         Connection connection = Jsoup.connect(url);
         try {
-            return connection.get();
+            return Optional.ofNullable(connection.get());
         } catch (IOException e) {
             LOGGER.error("Error occurred during connection to the site. Error cause is: {}", e.getMessage());
         }
-        return null;
+        return Optional.empty();
     }
 
     private String getCookieForAuthRequest() {
