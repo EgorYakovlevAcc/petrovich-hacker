@@ -101,7 +101,7 @@ public class PetrovichServiceImpl implements PetrovichService {
     @Override
     public void checkValues() {
         for (String goodId : goodsIds) {
-            Optional<Document> document = getDocument(PetrovichHackerUtils.getUrl(goodId));
+            Optional<Document> document = getDocument(goodId);
             if (document.isPresent()) {
                 Optional<Element> productSidebarContent = document
                         .map(Document::body)
@@ -231,12 +231,12 @@ public class PetrovichServiceImpl implements PetrovichService {
         return null;
     }
 
-    private Optional<Document> getDocument(String url) {
-        Connection connection = Jsoup.connect(url);
+    private Optional<Document> getDocument(String goodId) {
+        Connection connection = Jsoup.connect(PetrovichHackerUtils.getUrl(goodId));
         try {
             return Optional.ofNullable(connection.get());
         } catch (IOException e) {
-            LOGGER.error("Error occurred during connection to the site. Error cause is: {}", e.getMessage());
+            LOGGER.error("[{}] Error occurred during connection to the site page. Error cause is: {}", goodId, e.getMessage());
         }
         return Optional.empty();
     }
